@@ -52,7 +52,7 @@ class LocalUpdate(object):
                                 batch_size=int(len(idxs_test)/10), shuffle=False)
         return trainloader, validloader, testloader
 
-    def update_weights(self, model, global_round):
+    def update_weights(self, model, global_round, exit):
         # Set mode to train model
         model.train()
         epoch_loss = []
@@ -71,16 +71,16 @@ class LocalUpdate(object):
                 images, labels = images.to(self.device), labels.to(self.device)
 
                 model.zero_grad()
-                log_probs = model(images) if not isinstance(model, MulitBranchCNN) else model(images, 1)
+                log_probs = model(images) if not isinstance(model, MulitBranchCNN) else model(images, exit)
                 loss = self.criterion(log_probs, labels)
                 loss.backward()
                 optimizer.step()
 
                 if self.args.verbose and (batch_idx % 10 == 0):
-                    print('| Global Round : {} | Local Epoch : {} | [{}/{} ({:.0f}%)]\tLoss: {:.6f}'.format(
+                    print('| Global Round : {} | Local Epoch : {} | [{}/{} ({:.0f}%)] | exit {}\tLoss: {:.6f}'.format(
                         global_round, iter, batch_idx * len(images),
                         len(self.trainloader.dataset),
-                        100. * batch_idx / len(self.trainloader), loss.item()))
+                        100. * batch_idx / len(self.trainloader), exit, loss.item()))
                 self.logger.add_scalar('loss', loss.item())
                 batch_loss.append(loss.item())
             epoch_loss.append(sum(batch_loss)/len(batch_loss))

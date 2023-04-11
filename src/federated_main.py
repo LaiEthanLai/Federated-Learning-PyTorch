@@ -82,6 +82,9 @@ if __name__ == '__main__':
     print_every = 2
     val_loss_pre, counter = 0, 0
 
+    # agent type
+    agent_type = [i%3 for i in range(args.num_users)]
+
     for epoch in tqdm(range(args.epochs)):
         local_weights, local_losses = [], []
         print(f'\n | Global Training Round : {epoch+1} |\n')
@@ -93,8 +96,9 @@ if __name__ == '__main__':
         for idx in idxs_users:
             local_model = LocalUpdate(args=args, dataset=train_dataset,
                                       idxs=user_groups[idx], logger=logger, device=device)
+            print(agent_type[idx])
             w, loss = local_model.update_weights(
-                model=copy.deepcopy(global_model), global_round=epoch)
+                model=copy.deepcopy(global_model), global_round=epoch, exit=agent_type[idx])
             local_weights.append(w)
             local_losses.append(loss)
 
