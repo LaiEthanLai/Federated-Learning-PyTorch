@@ -117,7 +117,7 @@ if __name__ == '__main__':
         for c in range(args.num_users):
             local_model = LocalUpdate(args=args, dataset=train_dataset,
                                       idxs=user_groups[idx], logger=logger, device=device)
-            acc, loss = local_model.inference(model=global_model)
+            acc, loss = local_model.inference(model=global_model, exit=agent_type[c])
             list_acc.append(acc)
             list_loss.append(loss)
         train_accuracy.append(sum(list_acc)/len(list_acc))
@@ -133,7 +133,11 @@ if __name__ == '__main__':
 
     print(f' \n Results after {args.epochs} global rounds of training:')
     print("|---- Avg Train Accuracy: {:.2f}%".format(100*train_accuracy[-1]))
-    print("|---- Test Accuracy: {:.2f}%".format(100*test_acc))
+    if isinstance(global_model, MulitBranchCNN):
+        for i in range(3):
+            print("|---- Test Accuracy for exit {}: {:.2f}%".format(i, 100*test_acc[i]))
+    else:
+        print("|---- Test Accuracy: {:.2f}%".format(100*test_acc))
 
     # Saving the objects train_loss and train_accuracy:
     parent = Path(os.path.realpath(__file__)).parent

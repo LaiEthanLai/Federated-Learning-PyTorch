@@ -17,9 +17,14 @@ from models import MLP, CNNMnist, CNNFashion_Mnist, CNNCifar
 
 if __name__ == '__main__':
     args = args_parser()
-    if args.gpu:
-        torch.cuda.set_device(args.gpu)
-    device = 'cuda' if args.gpu else 'cpu'
+    
+    device = None
+    if isinstance(args.gpu, int):
+        device = f'cuda:{args.gpu}'
+    elif args.gpu == 'mps':
+        device = 'mps'
+    else:
+        device = 'cpu'
 
     # load datasets
     train_dataset, test_dataset, _ = get_dataset(args)
@@ -93,6 +98,6 @@ if __name__ == '__main__':
                                                  args.epochs))
 
     # testing
-    test_acc, test_loss = test_inference(args, global_model, test_dataset)
+    test_acc, test_loss = test_inference(args, global_model, test_dataset, device)
     print('Test on', len(test_dataset), 'samples')
     print("Test Accuracy: {:.2f}%".format(100*test_acc))

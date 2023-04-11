@@ -87,7 +87,7 @@ class LocalUpdate(object):
 
         return model.state_dict(), sum(epoch_loss) / len(epoch_loss)
 
-    def inference(self, model):
+    def inference(self, model, exit):
         """ Returns the inference accuracy and loss.
         """
 
@@ -98,9 +98,10 @@ class LocalUpdate(object):
             images, labels = images.to(self.device), labels.to(self.device)
 
             # Inference
-            outputs = model(images)
-            batch_loss = self.criterion(outputs, labels)
-            loss += batch_loss.item()
+            with torch.no_grad():
+                outputs = model(images) if not isinstance(model, MulitBranchCNN) else model(images, exit)
+                batch_loss = self.criterion(outputs, labels)
+                loss += batch_loss.item()
 
             # Prediction
             _, pred_labels = torch.max(outputs, 1)
@@ -117,7 +118,7 @@ def test_inference(args, model, test_dataset, device):
     """
 
     model.eval()
-    loss, total, correct = 0.0, 0.0, 0.0
+    loss, total, correct = [0.0, 0.0, 0.0], [0.0, 0.0, 0.0], [0.0, 0.0, 0.0]
 
     # device = 'cuda' if args.gpu else 'cpu'
     criterion = nn.NLLLoss().to(device)
@@ -128,15 +129,32 @@ def test_inference(args, model, test_dataset, device):
         images, labels = images.to(device), labels.to(device)
 
         # Inference
-        outputs = model(images)
-        batch_loss = criterion(outputs, labels)
-        loss += batch_loss.item()
+        outputs = None
+        batch_loss = None
+        with torch.no_grad():
+            if not isinstance(model, MulitBranchCNN):
+                outputs = model(images)  
+                batch_loss = criterion(outputs, labels)
+                loss[0] += batch_loss.item()
+                # Prediction
+                _, pred_labels = torch.max(outputs, 1)
+                pred_labels = pred_labels.view(-1)
+                correct[0] += torch.sum(torch.eq(pred_labels, labels)).item()
+                total[0] += len(labels)
+            else:
+                outputs = [model(images, i) for i in range(3)]
+                batch_loss = [criterion(outputs[i], labels) for i in range(3)]
+                for i in range(3):
+                    loss[i] += batch_loss[i]
+                    _, pred_labels = torch.max(outputs[i], 1)
+                    pred_labels = pred_labels.view(-1)
+                    correct[i] += torch.sum(torch.eq(pred_labels, labels)).item()
+                    total[i] += len(labels)
 
-        # Prediction
-        _, pred_labels = torch.max(outputs, 1)
-        pred_labels = pred_labels.view(-1)
-        correct += torch.sum(torch.eq(pred_labels, labels)).item()
-        total += len(labels)
-
-    accuracy = correct/total
+    accuracy = []
+    if not isinstance(model, MulitBranchCNN):
+        accuracy += (correct[0] / total[0]),
+    else:
+        for i in range(3):
+            accuracy += (correct[i] / total[i]),
     return accuracy, loss
