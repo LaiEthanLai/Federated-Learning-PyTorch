@@ -7,7 +7,8 @@ import torch
 from torchvision import datasets, transforms
 from sampling import mnist_iid, mnist_noniid, mnist_noniid_unequal
 from sampling import cifar_iid, cifar_noniid
-
+import os
+from pathlib import Path
 
 def get_dataset(args):
     """ Returns train and test datasets and a user group which is a dict where
@@ -16,7 +17,8 @@ def get_dataset(args):
     """
 
     if args.dataset == 'cifar':
-        data_dir = '../data/cifar/'
+        parent = Path(os.path.realpath(__file__)).parent
+        data_dir = f'{parent}/../data/cifar/'
         apply_transform = transforms.Compose(
             [transforms.ToTensor(),
              transforms.Normalize((0.5, 0.5, 0.5), (0.5, 0.5, 0.5))])
@@ -41,10 +43,11 @@ def get_dataset(args):
                 user_groups = cifar_noniid(train_dataset, args.num_users)
 
     elif args.dataset == 'mnist' or 'fmnist':
+        parent = Path(os.path.realpath(__file__)).parent
         if args.dataset == 'mnist':
-            data_dir = '../data/mnist/'
+            data_dir = f'{parent}/../data/mnist/'
         else:
-            data_dir = '../data/fmnist/'
+            data_dir = f'{parent}/../data/fmnist/'
 
         apply_transform = transforms.Compose([
             transforms.ToTensor(),

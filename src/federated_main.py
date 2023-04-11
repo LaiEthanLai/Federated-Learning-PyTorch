@@ -9,13 +9,15 @@ import time
 import pickle
 import numpy as np
 from tqdm import tqdm
+import os
+from pathlib import Path
 
 import torch
 from tensorboardX import SummaryWriter
 
 from options import args_parser
 from update import LocalUpdate, test_inference
-from models import MLP, CNNMnist, CNNFashion_Mnist, CNNCifar
+from models import MLP, CNNMnist, CNNFashion_Mnist, CNNCifar, MulitBranchCNN
 from utils import get_dataset, average_weights, exp_details
 
 
@@ -24,14 +26,21 @@ if __name__ == '__main__':
 
     # define paths
     path_project = os.path.abspath('..')
-    logger = SummaryWriter('../logs')
+    logger = SummaryWriter('logs')
 
     args = args_parser()
     exp_details(args)
 
-    if args.gpu_id:
-        torch.cuda.set_device(args.gpu_id)
-    device = 'cuda' if args.gpu else 'cpu'
+    # if args.gpu_id:
+    #     torch.cuda.set_device(args.gpu_id)
+    if isinstance(args.gpu, int):
+        device = f'cuda:{args.gpu}'
+    elif args.gpu == 'mps':
+        device = 'mps'
+    else:
+        device = 'cpu'
+    
+    print(f'training on device: {device}')
 
     # load dataset and user groups
     train_dataset, test_dataset, user_groups = get_dataset(args)
@@ -44,7 +53,8 @@ if __name__ == '__main__':
         elif args.dataset == 'fmnist':
             global_model = CNNFashion_Mnist(args=args)
         elif args.dataset == 'cifar':
-            global_model = CNNCifar(args=args)
+            # global_model = CNNCifar(args=args)
+            global_model = MulitBranchCNN()
 
     elif args.model == 'mlp':
         # Multi-layer preceptron
@@ -82,11 +92,11 @@ if __name__ == '__main__':
 
         for idx in idxs_users:
             local_model = LocalUpdate(args=args, dataset=train_dataset,
-                                      idxs=user_groups[idx], logger=logger)
+                                      idxs=user_groups[idx], logger=logger, device=device)
             w, loss = local_model.update_weights(
                 model=copy.deepcopy(global_model), global_round=epoch)
-            local_weights.append(copy.deepcopy(w))
-            local_losses.append(copy.deepcopy(loss))
+            local_weights.append(w)
+            local_losses.append(loss)
 
         # update global weights
         global_weights = average_weights(local_weights)
@@ -102,7 +112,7 @@ if __name__ == '__main__':
         global_model.eval()
         for c in range(args.num_users):
             local_model = LocalUpdate(args=args, dataset=train_dataset,
-                                      idxs=user_groups[idx], logger=logger)
+                                      idxs=user_groups[idx], logger=logger, device=device)
             acc, loss = local_model.inference(model=global_model)
             list_acc.append(acc)
             list_loss.append(loss)
@@ -115,15 +125,16 @@ if __name__ == '__main__':
             print('Train Accuracy: {:.2f}% \n'.format(100*train_accuracy[-1]))
 
     # Test inference after completion of training
-    test_acc, test_loss = test_inference(args, global_model, test_dataset)
+    test_acc, test_loss = test_inference(args, global_model, test_dataset, device)
 
     print(f' \n Results after {args.epochs} global rounds of training:')
     print("|---- Avg Train Accuracy: {:.2f}%".format(100*train_accuracy[-1]))
     print("|---- Test Accuracy: {:.2f}%".format(100*test_acc))
 
     # Saving the objects train_loss and train_accuracy:
-    file_name = '../save/objects/{}_{}_{}_C[{}]_iid[{}]_E[{}]_B[{}].pkl'.\
-        format(args.dataset, args.model, args.epochs, args.frac, args.iid,
+    parent = Path(os.path.realpath(__file__)).parent
+    file_name = '{}/../save/objects/{}_{}_{}_C[{}]_iid[{}]_E[{}]_B[{}].pkl'.\
+        format(parent, args.dataset, args.model, args.epochs, args.frac, args.iid,
                args.local_ep, args.local_bs)
 
     with open(file_name, 'wb') as f:

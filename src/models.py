@@ -4,7 +4,8 @@
 
 from torch import nn
 import torch.nn.functional as F
-
+from functools import partial
+from einops.layers.torch import Reduce
 
 class MLP(nn.Module):
     def __init__(self, dim_in, dim_hidden, dim_out):
@@ -118,3 +119,132 @@ class modelC(nn.Module):
         pool_out.squeeze_(-1)
         pool_out.squeeze_(-1)
         return pool_out
+
+conv3x3 = partial(nn.Conv2d, kernel_size = 3, bias=False)
+conv1x1 = partial(nn.Conv2d, kernel_size = 1, bias=False)
+
+class BasicBlock(nn.Module):
+    def __init__(self, inplanes, planes, stride=1, downsample=None):
+        super(BasicBlock, self).__init__()
+        self.conv1 = conv3x3(inplanes, planes, stride=stride, padding=1)
+        self.bn1 = nn.BatchNorm2d(planes)
+        self.relu = nn.ReLU(inplace=True)
+        self.conv2 = conv3x3(planes, planes, padding=1)
+        self.bn2 = nn.BatchNorm2d(planes)
+        self.downsample = downsample
+        self.stride = stride
+
+    def forward(self, x):
+        residual = x
+
+        out = self.conv1(x)
+        out = self.bn1(out)
+        out = self.relu(out)
+
+        out = self.conv2(out)
+        out = self.bn2(out)
+
+        if self.downsample is not None:
+            residual = self.downsample(x)
+        
+        out += residual
+        out = self.relu(out)
+        return out
+
+class MulitBranchCNN(nn.Module):
+    def __init__(self, inplanes=16, layers = [4, 4, 4], num_classes = 10) -> None:
+        super().__init__()
+
+        self.inplanes = inplanes
+        self.conv1 = conv3x3(3, self.inplanes)
+        self.bn1 = nn.BatchNorm2d(16)
+        self.lrelu = nn.LeakyReLU()
+        self.expansion = 1
+        self.layers = layers
+
+        downsample = None
+        stride = 1
+        planes = 16
+        if stride != 1 or self.inplanes != planes * self.expansion:
+            downsample = nn.Sequential(
+                nn.Conv2d(self.inplanes, planes * self.expansion,
+                          kernel_size=1, stride=stride, bias=False),
+                nn.BatchNorm2d(planes * self.expansion),
+            )
+        name = 'group0_layer'
+        for i in range(layers[0]):
+            setattr(self, f'{name}{i}',BasicBlock(self.inplanes, planes, stride, downsample))
+        
+        self.exit0 = nn.Sequential(
+            conv3x3(self.inplanes, planes),
+            nn.BatchNorm2d(planes),
+            nn.ReLU(),
+            Reduce('b c h w -> b c', reduction='mean'),
+            nn.Linear(planes, num_classes),
+            nn.ReLU()
+        )
+
+        downsample = None
+        stride = 2
+        planes = 32
+        if stride != 1 or self.inplanes != planes * self.expansion:
+            downsample = nn.Sequential(
+                nn.Conv2d(self.inplanes, planes * self.expansion,
+                          kernel_size=1, stride=stride, bias=False),
+                nn.BatchNorm2d(planes * self.expansion),
+            )
+        name = 'group1_layer'
+        
+        for i in range(layers[0]):
+            setattr(self, f'{name}{i}',BasicBlock(self.inplanes, planes, stride, downsample))
+            self.inplanes = 32
+        
+        self.exit1 = nn.Sequential(
+            Reduce('b c h w -> b c', reduction='mean'),
+            nn.Linear(planes, planes // 2),
+            nn.ReLU(),
+            nn.Linear(planes // 2, num_classes),
+            nn.ReLU()
+        )
+
+
+        downsample = None
+        stride = 2
+        planes = 64
+        if stride != 1 or self.inplanes != planes * self.expansion:
+            downsample = nn.Sequential(
+                nn.Conv2d(self.inplanes, planes * self.expansion,
+                          kernel_size=1, stride=stride, bias=False),
+                nn.BatchNorm2d(planes * self.expansion),
+            )
+        name = 'group2_layer'
+        
+        for i in range(layers[0]):
+            setattr(self, f'{name}{i}',BasicBlock(self.inplanes, planes, stride, downsample))
+            self.inplanes = 64
+        
+        self.exit2 = nn.Sequential(
+            Reduce('b c h w -> b c', reduction='mean'),
+            nn.Linear(planes, planes // 2),
+            nn.ReLU(),
+            nn.Linear(planes // 2, planes // 2),
+            nn.ReLU(),
+            nn.Linear(planes // 2, num_classes),
+            nn.ReLU()
+        )
+
+
+    def forward(self, x, idx: int):
+
+        x = self.lrelu(self.bn1(self.conv1(x)))
+
+        for g in range(3):
+            for l in range(self.layers[g]):
+                print(x.shape)
+                print(getattr(self, f'group{g}_layer{l}'))
+                x = getattr(self, f'group{g}_layer{l}')(x)
+            
+            if idx == g:
+                return getattr(self, f'exit{idx}')(x)
+       
+        return 
