@@ -33,7 +33,7 @@ if __name__ == '__main__':
 
     # if args.gpu_id:
     #     torch.cuda.set_device(args.gpu_id)
-    if isinstance(args.gpu, int):
+    if len(args.gpu) == 1:
         device = f'cuda:{args.gpu}'
     elif args.gpu == 'mps':
         device = 'mps'
@@ -104,7 +104,8 @@ if __name__ == '__main__':
                 model=copy.deepcopy(global_model), global_round=epoch, exit=agent_type[idx])
             local_weights.append(w)
             local_losses.append(loss)
-            local_portions.append(agent_data_portion[idx])
+            if args.diff_data_num:
+                local_portions.append(agent_data_portion[idx])
         
         # make sure the last element in the list is the weight of the full model
         local_weights.append(global_weights)
