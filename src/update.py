@@ -70,7 +70,7 @@ class LocalUpdate(object):
             for batch_idx, (images, labels) in enumerate(self.trainloader):
                 images, labels = images.to(self.device), labels.to(self.device)
 
-                model.zero_grad()
+                optimizer.zero_grad()
                 log_probs = model(images) if not isinstance(model, MulitBranchCNN) else model(images, exit)
                 loss = self.criterion(log_probs, labels)
                 loss.backward()

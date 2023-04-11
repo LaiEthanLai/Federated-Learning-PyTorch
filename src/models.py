@@ -213,7 +213,6 @@ class MulitBranchCNN(nn.Module):
         downsample = None
         stride = 2
         planes = 64
-        self.inplanes = planes 
         if stride != 1 or self.inplanes != planes * self.expansion:
             downsample = nn.Sequential(
                 nn.Conv2d(self.inplanes, planes * self.expansion,
@@ -250,6 +249,6 @@ class MulitBranchCNN(nn.Module):
                 x = getattr(self, f'group{g}_layer{l}')(x)
             
             if idx == g:
-                return getattr(self, f'exit{idx}')(x)
+                return F.log_softmax(getattr(self, f'exit{idx}')(x), dim=1)
        
         return 
