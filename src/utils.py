@@ -6,11 +6,11 @@ import copy
 import torch
 from torchvision import datasets, transforms
 from sampling import mnist_iid, mnist_noniid, mnist_noniid_unequal
-from sampling import cifar_iid, cifar_noniid
+from sampling import cifar_iid, cifar_noniid, cifar_iid_portioned
 import os
 from pathlib import Path
 
-def get_dataset(args):
+def get_dataset(args, data_portion=None):
     """ Returns train and test datasets and a user group which is a dict where
     the keys are the user index and the values are the corresponding data for
     each of those users.
@@ -32,7 +32,10 @@ def get_dataset(args):
         # sample training data amongst users
         if args.iid:
             # Sample IID user data from Mnist
-            user_groups = cifar_iid(train_dataset, args.num_users)
+            if data_portion is None:
+                user_groups = cifar_iid(train_dataset, num_users=args.num_users)
+            else:
+                user_groups = cifar_iid_portioned(train_dataset, portions=data_portion)
         else:
             # Sample Non-IID user data from Mnist
             if args.unequal:
@@ -75,16 +78,29 @@ def get_dataset(args):
     return train_dataset, test_dataset, user_groups
 
 
-def average_weights(w):
+def average_weights(w, portions=None):
     """
     Returns the average of the weights.
     """
-    w_avg = copy.deepcopy(w[0])
-    for key in w_avg.keys():
-        for i in range(1, len(w)):
-            w_avg[key] += w[i][key]
-        w_avg[key] = torch.div(w_avg[key], len(w))
-    return w_avg
+    if portions is None:
+        w_avg = copy.deepcopy(w[-1])
+        w.pop()
+        for key in w_avg.keys():
+            for i in range(1, len(w)):
+                w_avg[key] += w[i][key]
+            w_avg[key] = torch.div(w_avg[key], len(w))
+        return w_avg
+    elif portions is not None:
+        w_avg = copy.deepcopy(w[-1])
+        w.pop()
+        for key in w_avg.keys():
+            for i in range(1, len(w)):
+                if key in w[i]:
+                    print(f'{key}\t{w_avg[key].dtype}')
+                    w_avg[key] += (w[i][key] * portions[i]).to(w_avg[key].dtype)
+        return w_avg
+
+    
 
 
 def exp_details(args):

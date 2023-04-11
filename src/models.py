@@ -49,12 +49,12 @@ class CNNFashion_Mnist(nn.Module):
         super(CNNFashion_Mnist, self).__init__()
         self.layer1 = nn.Sequential(
             nn.Conv2d(1, 16, kernel_size=5, padding=2),
-            nn.BatchNorm2d(16),
+            nn.GroupNorm(4, 16),
             nn.LeakyReLU(),
             nn.MaxPool2d(2))
         self.layer2 = nn.Sequential(
             nn.Conv2d(16, 32, kernel_size=5, padding=2),
-            nn.BatchNorm2d(32),
+            nn.GroupNorm(4, 32),
             nn.LeakyReLU(),
             nn.MaxPool2d(2))
         self.fc = nn.Linear(7*7*32, 10)
@@ -88,7 +88,7 @@ class CNNCifar(nn.Module):
 
 class modelC(nn.Module):
     def __init__(self, input_size, n_classes=10, **kwargs):
-        super(AllConvNet, self).__init__()
+        super(modelC, self).__init__()
         self.conv1 = nn.Conv2d(input_size, 96, 3, padding=1)
         self.conv2 = nn.Conv2d(96, 96, 3, padding=1)
         self.conv3 = nn.Conv2d(96, 96, 3, padding=1, stride=2)
@@ -127,10 +127,10 @@ class BasicBlock(nn.Module):
     def __init__(self, inplanes, planes, stride=1, downsample=None):
         super(BasicBlock, self).__init__()
         self.conv1 = conv3x3(inplanes, planes, stride=stride)
-        self.bn1 = nn.BatchNorm2d(planes)
+        self.bn1 = nn.GroupNorm(planes // 8, planes)
         self.relu = nn.ReLU(inplace=True)
         self.conv2 = conv3x3(planes, planes)
-        self.bn2 = nn.BatchNorm2d(planes)
+        self.bn2 = nn.GroupNorm(planes // 8, planes)
         self.downsample = downsample
         self.stride = stride
 
@@ -157,7 +157,7 @@ class MulitBranchCNN(nn.Module):
 
         self.inplanes = inplanes
         self.conv1 = conv3x3(3, self.inplanes)
-        self.bn1 = nn.BatchNorm2d(16)
+        self.bn1 = nn.GroupNorm(4, 16)
         self.lrelu = nn.LeakyReLU()
         self.expansion = 1
         self.layers = layers
@@ -169,7 +169,7 @@ class MulitBranchCNN(nn.Module):
             downsample = nn.Sequential(
                 nn.Conv2d(self.inplanes, planes * self.expansion,
                           kernel_size=1, stride=stride, bias=False),
-                nn.BatchNorm2d(planes * self.expansion),
+                nn.GroupNorm(4, planes * self.expansion),
             )
         name = 'group0_layer'
         for i in range(layers[0]):
@@ -177,7 +177,7 @@ class MulitBranchCNN(nn.Module):
         
         self.exit0 = nn.Sequential(
             conv3x3(self.inplanes, planes),
-            nn.BatchNorm2d(planes),
+            nn.GroupNorm(4, planes),
             nn.LeakyReLU(),
             Reduce('b c h w -> b c', reduction='mean'),
             nn.Linear(planes, num_classes),
@@ -192,7 +192,7 @@ class MulitBranchCNN(nn.Module):
             downsample = nn.Sequential(
                 nn.Conv2d(self.inplanes, planes * self.expansion,
                           kernel_size=1, stride=stride, bias=False),
-                nn.BatchNorm2d(planes * self.expansion),
+                nn.GroupNorm(4, planes * self.expansion),
             )
         name = 'group1_layer'
         setattr(self, f'{name}{0}',BasicBlock(self.inplanes, planes, stride, downsample))
@@ -217,7 +217,7 @@ class MulitBranchCNN(nn.Module):
             downsample = nn.Sequential(
                 nn.Conv2d(self.inplanes, planes * self.expansion,
                           kernel_size=1, stride=stride, bias=False),
-                nn.BatchNorm2d(planes * self.expansion),
+                nn.GroupNorm(8, planes * self.expansion),
             )
         name = 'group2_layer'
         setattr(self, f'{name}{0}',BasicBlock(self.inplanes, planes, stride, downsample))

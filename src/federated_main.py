@@ -43,7 +43,11 @@ if __name__ == '__main__':
     print(f'training on device: {device}')
 
     # load dataset and user groups
-    train_dataset, test_dataset, user_groups = get_dataset(args)
+    agent_data_portion = None
+    if args.diff_data_num:
+        agent_data_portion = torch.rand(args.num_users) 
+        agent_data_portion = agent_data_portion / torch.sum(agent_data_portion)
+    train_dataset, test_dataset, user_groups = get_dataset(args, agent_data_portion)
 
     # BUILD MODEL
     if args.model == 'cnn':
@@ -86,7 +90,7 @@ if __name__ == '__main__':
     agent_type = [i%3 for i in range(args.num_users)]
 
     for epoch in tqdm(range(args.epochs)):
-        local_weights, local_losses = [], []
+        local_weights, local_losses, local_portions = [], [], []
         print(f'\n | Global Training Round : {epoch+1} |\n')
 
         global_model.train()
@@ -96,15 +100,20 @@ if __name__ == '__main__':
         for idx in idxs_users:
             local_model = LocalUpdate(args=args, dataset=train_dataset,
                                       idxs=user_groups[idx], logger=logger, device=device)
-            print(agent_type[idx])
             w, loss = local_model.update_weights(
                 model=copy.deepcopy(global_model), global_round=epoch, exit=agent_type[idx])
             local_weights.append(w)
             local_losses.append(loss)
-
+            local_portions.append(agent_data_portion[idx])
+        
+        # make sure the last element in the list is the weight of the full model
+        local_weights.append(global_weights)
         # update global weights
-        global_weights = average_weights(local_weights)
-
+        if args.avg_mode == 'fedavg':
+            global_weights = average_weights(local_weights)
+        elif args.avg_mode == 'mfedavg' and args.diff_data_num:
+            global_weights = average_weights(local_weights, portions=local_portions)
+        
         # update global weights
         global_model.load_state_dict(global_weights)
 

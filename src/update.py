@@ -6,7 +6,7 @@ import torch
 from torch import nn
 from torch.utils.data import DataLoader, Dataset
 from models import MulitBranchCNN
-
+from collections import OrderedDict
 
 class DatasetSplit(Dataset):
     """An abstract Dataset class wrapped around Pytorch Dataset class.
@@ -47,12 +47,12 @@ class LocalUpdate(object):
         trainloader = DataLoader(DatasetSplit(dataset, idxs_train),
                                 batch_size=self.args.local_bs, shuffle=True)
         validloader = DataLoader(DatasetSplit(dataset, idxs_val),
-                                batch_size=int(len(idxs_val)/10), shuffle=False)
+                                batch_size=self.args.local_bs, shuffle=False)
         testloader = DataLoader(DatasetSplit(dataset, idxs_test),
-                                batch_size=int(len(idxs_test)/10), shuffle=False)
+                                batch_size=self.args.local_bs, shuffle=False)
         return trainloader, validloader, testloader
 
-    def update_weights(self, model, global_round, exit):
+    def update_weights(self, model, global_round, exit=None):
         # Set mode to train model
         model.train()
         epoch_loss = []
@@ -84,8 +84,24 @@ class LocalUpdate(object):
                 self.logger.add_scalar('loss', loss.item())
                 batch_loss.append(loss.item())
             epoch_loss.append(sum(batch_loss)/len(batch_loss))
+        
+        local_model = OrderedDict()
+        if exit == 0:
+            for i in model.state_dict().keys():
+                if 'group1_layer' not in i and 'group2_layer' not in i and 'exit1' not in i and 'exit2' not in i:
+                    local_model[i] = model.state_dict()[i]
+        elif exit == 1:
+            for i in model.state_dict().keys():
+                if 'group2_layer' not in i and 'exit0' not in i and 'exit2' not in i:
+                    local_model[i] = model.state_dict()[i]
+        elif exit == 2:
+            for i in model.state_dict().keys():
+                if 'exit0' not in i and 'exit1' not in i:
+                    local_model[i] = model.state_dict()[i]
+        else:
+            local_model = model.state_dict()
 
-        return model.state_dict(), sum(epoch_loss) / len(epoch_loss)
+        return local_model, sum(epoch_loss) / len(epoch_loss)
 
     def inference(self, model, exit):
         """ Returns the inference accuracy and loss.

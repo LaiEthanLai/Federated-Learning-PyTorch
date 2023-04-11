@@ -9,6 +9,10 @@ def args_parser():
     parser = argparse.ArgumentParser()
 
     # federated arguments (Notation for the arguments followed from paper)
+    parser.add_argument('--diff_data_num', action='store_true',
+                        help='each clients have different data numbers')
+    parser.add_argument('--avg_mode', type=str, default='fedavg',
+                        help='fedavg or mfedavg')
     parser.add_argument('--epochs', type=int, default=10,
                         help="number of rounds of training")
     parser.add_argument('--num_users', type=int, default=100,
