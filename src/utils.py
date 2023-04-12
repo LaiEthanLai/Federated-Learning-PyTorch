@@ -87,7 +87,8 @@ def average_weights(w, portions=None):
         w.pop()
         for key in w_avg.keys():
             for i in range(1, len(w)):
-                w_avg[key] += w[i][key]
+                if key in w[i]:
+                    w_avg[key] += w[i][key]
             w_avg[key] = torch.div(w_avg[key], len(w))
         return w_avg
     elif portions is not None:
@@ -96,7 +97,6 @@ def average_weights(w, portions=None):
         for key in w_avg.keys():
             for i in range(1, len(w)):
                 if key in w[i]:
-                    print(f'{key}\t{w_avg[key].dtype}')
                     w_avg[key] += (w[i][key] * portions[i]).to(w_avg[key].dtype)
         return w_avg
 

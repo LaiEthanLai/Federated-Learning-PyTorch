@@ -10,7 +10,9 @@ def args_parser():
 
     # federated arguments (Notation for the arguments followed from paper)
     parser.add_argument('--diff_data_num', action='store_true',
-                        help='each clients have different data numbers')
+                        help='each client has a different data number')
+    parser.add_argument('--dirichlet', type=int, default=10,
+                        help='concentration of # of data of each client')
     parser.add_argument('--avg_mode', type=str, default='fedavg',
                         help='fedavg or mfedavg')
     parser.add_argument('--epochs', type=int, default=10,

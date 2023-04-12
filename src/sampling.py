@@ -167,17 +167,12 @@ def cifar_iid_portioned(dataset, portions):
     :return: dict of image index
     """
     num_items = [int(len(dataset) * portions[i]) for i in range(len(portions))]
-    for i in num_items:
-        print(i)
+    
     dict_users, all_idxs = {}, [i for i in range(len(dataset))]
     for i in range(len(portions)):
         dict_users[i] = set(choices(all_idxs, k=num_items[i]))
         all_idxs = list(set(all_idxs) - dict_users[i])
     dict_users[len(portions) - 1].update(set(all_idxs))
-
-    total = 0
-    for i in dict_users.keys():
-        total += len(dict_users[i])
 
     return dict_users
 

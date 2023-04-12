@@ -45,8 +45,7 @@ if __name__ == '__main__':
     # load dataset and user groups
     agent_data_portion = None
     if args.diff_data_num:
-        agent_data_portion = torch.rand(args.num_users) 
-        agent_data_portion = agent_data_portion / torch.sum(agent_data_portion)
+        agent_data_portion = np.random.dirichlet(np.ones(args.num_users) * args.dirichlet, size=1)[0]
     train_dataset, test_dataset, user_groups = get_dataset(args, agent_data_portion)
 
     # BUILD MODEL
@@ -143,12 +142,10 @@ if __name__ == '__main__':
 
     print(f' \n Results after {args.epochs} global rounds of training:')
     print("|---- Avg Train Accuracy: {:.2f}%".format(100*train_accuracy[-1]))
-    if isinstance(global_model, MulitBranchCNN):
-        for i in range(3):
-            print("|---- Test Accuracy for exit {}: {:.2f}%".format(i, 100*test_acc[i]))
-    else:
-        print("|---- Test Accuracy: {:.2f}%".format(100*test_acc))
-
+    
+    for i in range(len(test_acc)):
+        print("|---- Test Accuracy for exit {}: {:.2f}%".format(i, 100*test_acc[i]))
+   
     # Saving the objects train_loss and train_accuracy:
     parent = Path(os.path.realpath(__file__)).parent
     file_name = '{}/../save/objects/{}_{}_{}_C[{}]_iid[{}]_E[{}]_B[{}].pkl'.\
