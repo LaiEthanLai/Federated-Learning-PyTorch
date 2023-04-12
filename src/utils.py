@@ -96,8 +96,11 @@ def average_weights(w, portions=None):
         w.pop()
         for key in w_avg.keys():
             for i in range(1, len(w)):
+                # if 'num_batches_tracked' in key and key in w[i]:
+                #     w_avg[key] = w[i][key]
+                #     print(w[i][key])
                 if key in w[i]:
-                    w_avg[key] += (w[i][key] * portions[i]).to(w_avg[key].dtype)
+                    w_avg[key] += (w[i][key] * portions[i])
         return w_avg
 
     
