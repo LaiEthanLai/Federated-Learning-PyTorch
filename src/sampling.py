@@ -23,6 +23,23 @@ def mnist_iid(dataset, num_users):
         all_idxs = list(set(all_idxs) - dict_users[i])
     return dict_users
 
+def mnist_iid_portioned(dataset, portions):
+    """
+    Sample I.I.D. client data from CIFAR10 dataset
+    :param dataset:
+    :param num_users:
+    :return: dict of image index
+    """
+    num_items = [int(len(dataset) * portions[i]) for i in range(len(portions))]
+    
+    dict_users, all_idxs = {}, [i for i in range(len(dataset))]
+    for i in range(len(portions)):
+        dict_users[i] = set(choices(all_idxs, k=num_items[i]))
+        all_idxs = list(set(all_idxs) - dict_users[i])
+    dict_users[len(portions) - 1].update(set(all_idxs))
+
+    return dict_users
+
 
 def mnist_noniid(dataset, num_users):
     """
